@@ -60,7 +60,7 @@ Make sure the following programs are installed:
 
 - [🔗 Git](https://git-scm.com/) (for cloning the repository)
 - [🔗 Node.js](https://nodejs.org/) (including npm)
-- [VSCode](https://code.visualstudio.com), Editor Code.
+- [VSCode](https://code.visualstudio.com), Visual Studio Code - Code Editing
 
 
 ---
