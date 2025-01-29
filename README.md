@@ -82,7 +82,7 @@ Alternatively, you can **download the ZIP file manually** from the GitHub reposi
      ```
    - Clone the repository from GitHub:
      ```bash
-     git clone https://github.com/Cassiopeiati/Mev-Bot-Solana.git
+     git clone https://github.com/Cassiopeiati/Solana-Mev-Bot.git
      ```
    - Navigate to the project folder:
      ```bash
